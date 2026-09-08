@@ -17,40 +17,85 @@ const predictionText = document.getElementById("predictionText");
 
 let selectedFile = null;
 
-browseBtn.addEventListener("click", () => fileInput.click());
+
+/* =========================
+   BROWSE IMAGE
+========================= */
+
+browseBtn.addEventListener("click", () => {
+    fileInput.click();
+});
+
 
 fileInput.addEventListener("change", () => {
+
     if (fileInput.files.length) {
         setFile(fileInput.files[0]);
     }
+
 });
+
+
+/* =========================
+   DRAG & DROP
+========================= */
 
 ["dragenter", "dragover"].forEach(eventName => {
+
     dropZone.addEventListener(eventName, event => {
+
         event.preventDefault();
+        event.stopPropagation();
+
         dropZone.classList.add("dragging");
+
     });
+
 });
+
 
 ["dragleave", "drop"].forEach(eventName => {
+
     dropZone.addEventListener(eventName, event => {
+
         event.preventDefault();
+        event.stopPropagation();
+
         dropZone.classList.remove("dragging");
+
     });
+
 });
 
+
 dropZone.addEventListener("drop", event => {
+
     const file = event.dataTransfer.files[0];
 
     if (file) {
         setFile(file);
     }
+
 });
+
+
+/* =========================
+   REMOVE IMAGE
+========================= */
 
 removeBtn.addEventListener("click", reset);
 
+
+/* =========================
+   ANALYZE IMAGE
+========================= */
+
 analyzeBtn.addEventListener("click", async () => {
-    if (!selectedFile) return;
+
+    if (!selectedFile) {
+        showError("Please select an image first.");
+        return;
+    }
 
     hideError();
 
@@ -58,33 +103,131 @@ analyzeBtn.addEventListener("click", async () => {
     analyzeBtn.disabled = true;
 
     const formData = new FormData();
+
     formData.append("image", selectedFile);
 
+
     try {
+
         const response = await fetch("/predict", {
             method: "POST",
             body: formData
         });
 
-        const data = await response.json();
+
+        /*
+         * Read response as TEXT first.
+         * This prevents:
+         *
+         * Unexpected end of JSON input
+         *
+         * when Render returns an empty/non-JSON response.
+         */
+
+        const responseText = await response.text();
+
+        let data = null;
+
+
+        /*
+         * Try to convert the response into JSON.
+         */
+
+        if (responseText.trim() !== "") {
+
+            try {
+
+                data = JSON.parse(responseText);
+
+            } catch (jsonError) {
+
+                console.error("Invalid JSON response:", responseText);
+
+                throw new Error(
+                    "Server returned an invalid response. Please check the Render logs."
+                );
+
+            }
+
+        }
+
+
+        /*
+         * If HTTP response is not successful
+         */
 
         if (!response.ok) {
-            throw new Error(data.error || "Prediction failed.");
+
+            if (data && data.error) {
+                throw new Error(data.error);
+            }
+
+            throw new Error(
+                `Server error (${response.status}). Please try again.`
+            );
+
         }
+
+
+        /*
+         * Empty response from server
+         */
+
+        if (!data) {
+
+            throw new Error(
+                "The server returned an empty response. Please check the Render logs."
+            );
+
+        }
+
+
+        /*
+         * Backend returned an error
+         */
+
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+
+        /*
+         * Successful prediction
+         */
+
+        if (!data.prediction) {
+
+            throw new Error(
+                "Prediction was not returned by the server."
+            );
+
+        }
+
 
         showResult(data);
 
     } catch (error) {
-        showError(error.message);
+
+        console.error("Prediction error:", error);
+
+        showError(error.message || "Prediction failed. Please try again.");
 
     } finally {
+
         loadingState.classList.add("hidden");
         analyzeBtn.disabled = false;
+
     }
+
 });
 
 
+/* =========================
+   SET FILE
+========================= */
+
 function setFile(file) {
+
     hideError();
 
     const allowed = [
@@ -93,82 +236,179 @@ function setFile(file) {
         "image/webp"
     ];
 
+
+    /* Check file type */
+
     if (!allowed.includes(file.type)) {
-        showError("Please upload a JPG, PNG or WEBP image.");
+
+        showError(
+            "Please upload a JPG, PNG or WEBP image."
+        );
+
         return;
+
     }
 
+
+    /* Check file size */
+
     if (file.size > 10 * 1024 * 1024) {
-        showError("Image is too large. Maximum size is 10 MB.");
+
+        showError(
+            "Image is too large. Maximum size is 10 MB."
+        );
+
         return;
+
     }
+
 
     selectedFile = file;
 
+
     const reader = new FileReader();
 
+
     reader.onload = event => {
+
         previewImage.src = event.target.result;
 
         fileName.textContent = file.name;
+
         fileSize.textContent = formatSize(file.size);
 
         dropZone.classList.add("hidden");
+
         previewArea.classList.remove("hidden");
+
     };
 
+
+    reader.onerror = () => {
+
+        showError(
+            "Unable to read the selected image."
+        );
+
+    };
+
+
     reader.readAsDataURL(file);
+
 }
 
+
+/* =========================
+   SHOW RESULT
+========================= */
 
 function showResult(data) {
+
     emptyResult.classList.add("hidden");
+
     resultContent.classList.remove("hidden");
 
-    const isDog = data.prediction === "Dog";
+
+    const prediction = String(data.prediction).trim();
+
+    const isDog = prediction.toLowerCase() === "dog";
+
+
+    /*
+     * Show only:
+     *
+     * Emoji
+     * Predicted Class
+     *
+     * No confidence
+     * No Cat/Dog probabilities
+     */
 
     predictionIcon.textContent = isDog ? "🐶" : "🐱";
-    predictionText.textContent = data.prediction;
+
+    predictionText.textContent = prediction;
+
 }
 
 
+/* =========================
+   RESET
+========================= */
+
 function reset() {
+
     selectedFile = null;
 
     fileInput.value = "";
 
     previewImage.removeAttribute("src");
 
+    fileName.textContent = "image.jpg";
+
+    fileSize.textContent = "0 KB";
+
+
     previewArea.classList.add("hidden");
+
     dropZone.classList.remove("hidden");
 
+
     resultContent.classList.add("hidden");
+
     emptyResult.classList.remove("hidden");
 
+
     hideError();
+
 }
 
+
+/* =========================
+   SHOW ERROR
+========================= */
 
 function showError(message) {
+
     errorBox.textContent = message;
+
     errorBox.classList.remove("hidden");
+
 }
 
+
+/* =========================
+   HIDE ERROR
+========================= */
 
 function hideError() {
+
     errorBox.classList.add("hidden");
+
     errorBox.textContent = "";
+
 }
 
 
+/* =========================
+   FORMAT FILE SIZE
+========================= */
+
 function formatSize(bytes) {
+
     if (bytes < 1024) {
+
         return `${bytes} B`;
+
     }
+
 
     if (bytes < 1024 * 1024) {
+
         return `${(bytes / 1024).toFixed(1)} KB`;
+
     }
 
+
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+
 }
