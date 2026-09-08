@@ -106,94 +106,48 @@ analyzeBtn.addEventListener("click", async () => {
 
     formData.append("image", selectedFile);
 
-
     try {
+
+        console.log("Sending image to /predict...");
+        console.log("File:", selectedFile.name);
+        console.log("Size:", selectedFile.size);
+        console.log("Type:", selectedFile.type);
 
         const response = await fetch("/predict", {
             method: "POST",
             body: formData
         });
 
-
-        /*
-         * Read response as TEXT first.
-         * This prevents:
-         *
-         * Unexpected end of JSON input
-         *
-         * when Render returns an empty/non-JSON response.
-         */
+        console.log("Response status:", response.status);
+        console.log("Response OK:", response.ok);
 
         const responseText = await response.text();
 
-        let data = null;
+        console.log("Server response:", responseText);
 
+        let data;
 
-        /*
-         * Try to convert the response into JSON.
-         */
+        try {
 
-        if (responseText.trim() !== "") {
+            data = JSON.parse(responseText);
 
-            try {
+        } catch (error) {
 
-                data = JSON.parse(responseText);
-
-            } catch (jsonError) {
-
-                console.error("Invalid JSON response:", responseText);
-
-                throw new Error(
-                    "Server returned an invalid response. Please check the Render logs."
-                );
-
-            }
+            throw new Error(
+                `Server returned an invalid response (${response.status}).`
+            );
 
         }
 
-
-        /*
-         * If HTTP response is not successful
-         */
 
         if (!response.ok) {
 
-            if (data && data.error) {
-                throw new Error(data.error);
-            }
-
             throw new Error(
-                `Server error (${response.status}). Please try again.`
+                data.error || `Server error (${response.status}).`
             );
 
         }
 
-
-        /*
-         * Empty response from server
-         */
-
-        if (!data) {
-
-            throw new Error(
-                "The server returned an empty response. Please check the Render logs."
-            );
-
-        }
-
-
-        /*
-         * Backend returned an error
-         */
-
-        if (data.error) {
-            throw new Error(data.error);
-        }
-
-
-        /*
-         * Successful prediction
-         */
 
         if (!data.prediction) {
 
@@ -210,11 +164,14 @@ analyzeBtn.addEventListener("click", async () => {
 
         console.error("Prediction error:", error);
 
-        showError(error.message || "Prediction failed. Please try again.");
+        showError(
+            error.message || "Prediction failed. Please try again."
+        );
 
     } finally {
 
         loadingState.classList.add("hidden");
+
         analyzeBtn.disabled = false;
 
     }
@@ -237,8 +194,6 @@ function setFile(file) {
     ];
 
 
-    /* Check file type */
-
     if (!allowed.includes(file.type)) {
 
         showError(
@@ -249,8 +204,6 @@ function setFile(file) {
 
     }
 
-
-    /* Check file size */
 
     if (file.size > 10 * 1024 * 1024) {
 
@@ -314,16 +267,6 @@ function showResult(data) {
     const isDog = prediction.toLowerCase() === "dog";
 
 
-    /*
-     * Show only:
-     *
-     * Emoji
-     * Predicted Class
-     *
-     * No confidence
-     * No Cat/Dog probabilities
-     */
-
     predictionIcon.textContent = isDog ? "🐶" : "🐱";
 
     predictionText.textContent = prediction;
@@ -347,16 +290,13 @@ function reset() {
 
     fileSize.textContent = "0 KB";
 
-
     previewArea.classList.add("hidden");
 
     dropZone.classList.remove("hidden");
 
-
     resultContent.classList.add("hidden");
 
     emptyResult.classList.remove("hidden");
-
 
     hideError();
 
