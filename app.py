@@ -7,12 +7,19 @@ import os
 
 
 # =========================
+# LIMIT TENSORFLOW THREADS
+# =========================
+
+tf.config.threading.set_intra_op_parallelism_threads(1)
+tf.config.threading.set_inter_op_parallelism_threads(1)
+
+
+# =========================
 # FLASK APP
 # =========================
 
 app = Flask(__name__)
 
-# Maximum upload size: 10 MB
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024
 
 
@@ -26,9 +33,6 @@ MODEL_PATH = BASE_DIR / "cat_dog_model.h5"
 
 IMG_SIZE = (128, 128)
 
-# Class mapping
-# 0 = Cat
-# 1 = Dog
 CLASS_NAMES = {
     0: "Cat",
     1: "Dog"
@@ -39,7 +43,11 @@ CLASS_NAMES = {
 # LOAD MODEL
 # =========================
 
+model = None
+
 try:
+
+    print("Loading Cat vs Dog model...")
 
     model = tf.keras.models.load_model(
         MODEL_PATH,
@@ -50,8 +58,7 @@ try:
 
 except Exception as e:
 
-    print("ERROR loading model:", e)
-    model = None
+    print("MODEL LOAD ERROR:", repr(e))
 
 
 # =========================
@@ -60,31 +67,33 @@ except Exception as e:
 
 def preprocess_image(file_storage):
 
+    print("Opening uploaded image...")
+
     image = Image.open(file_storage).convert("RGB")
 
-    # Resize to model input size
+    print("Original image size:", image.size)
+
     image = image.resize(IMG_SIZE)
 
-    # Convert image to numpy array
     image_array = np.asarray(
         image,
         dtype=np.float32
     )
 
-    # Normalize pixel values
-    image_array = image_array / 255.0
+    image_array /= 255.0
 
-    # Add batch dimension
     image_array = np.expand_dims(
         image_array,
         axis=0
     )
 
+    print("Processed image shape:", image_array.shape)
+
     return image_array
 
 
 # =========================
-# HOME PAGE
+# HOME
 # =========================
 
 @app.route("/")
@@ -94,22 +103,33 @@ def index():
 
 
 # =========================
-# PREDICTION API
+# PREDICTION
 # =========================
 
-@app.post("/predict")
+@app.route("/predict", methods=["POST"])
 def predict():
 
+    print("================================")
+    print("POST /predict received")
+    print("================================")
+
+
     # Check model
+
     if model is None:
 
+        print("ERROR: Model is not loaded.")
+
         return jsonify({
-            "error": "Model could not be loaded on the server."
+            "error": "Model is not loaded on the server."
         }), 500
 
 
-    # Check uploaded file
+    # Check file
+
     if "image" not in request.files:
+
+        print("ERROR: No image field.")
 
         return jsonify({
             "error": "Please select an image."
@@ -119,8 +139,9 @@ def predict():
     image_file = request.files["image"]
 
 
-    # Check filename
-    if not image_file.filename:
+    if image_file.filename == "":
+
+        print("ERROR: Empty filename.")
 
         return jsonify({
             "error": "Please select an image."
@@ -129,22 +150,43 @@ def predict():
 
     try:
 
-        # Preprocess image
+        # =========================
+        # PREPROCESS
+        # =========================
+
         image = preprocess_image(image_file)
 
 
-        # Make prediction
-        prediction = model.predict(
+        print("Starting model prediction...")
+
+
+        # =========================
+        # MODEL INFERENCE
+        # =========================
+
+        prediction = model(
             image,
-            verbose=0
+            training=False
         )
 
 
-        # Convert prediction to float
-        probability = float(prediction[0][0])
+        print("Model prediction completed.")
 
 
-        # Determine class
+        # Convert TensorFlow tensor to numpy
+
+        probability = float(
+            prediction.numpy()[0][0]
+        )
+
+
+        print("Raw probability:", probability)
+
+
+        # =========================
+        # CLASSIFICATION
+        # =========================
+
         if probability >= 0.5:
 
             predicted_index = 1
@@ -154,10 +196,18 @@ def predict():
             predicted_index = 0
 
 
-        predicted_class = CLASS_NAMES[predicted_index]
+        predicted_class = CLASS_NAMES[
+            predicted_index
+        ]
 
 
-        # Confidence
+        print("Predicted class:", predicted_class)
+
+
+        # =========================
+        # CONFIDENCE
+        # =========================
+
         if predicted_index == 1:
 
             confidence = probability
@@ -167,27 +217,41 @@ def predict():
             confidence = 1.0 - probability
 
 
-        # Return JSON
-        return jsonify({
+        print(
+            "Confidence:",
+            round(confidence * 100, 2)
+        )
 
+
+        # =========================
+        # RESPONSE
+        # =========================
+
+        response = {
             "prediction": predicted_class,
-
             "confidence": round(
                 confidence * 100,
                 2
             )
+        }
 
-        })
+
+        print("Sending response:", response)
+
+
+        return jsonify(response)
 
 
     except Exception as e:
 
-        print("Prediction error:", e)
+        print("================================")
+        print("PREDICTION ERROR")
+        print(repr(e))
+        print("================================")
+
 
         return jsonify({
-
-            "error": f"Could not analyze the image: {str(e)}"
-
+            "error": f"Prediction failed: {str(e)}"
         }), 500
 
 
@@ -199,14 +263,12 @@ def predict():
 def file_too_large(error):
 
     return jsonify({
-
         "error": "Image is too large. Maximum size is 10 MB."
-
     }), 413
 
 
 # =========================
-# START APPLICATION
+# START
 # =========================
 
 if __name__ == "__main__":
