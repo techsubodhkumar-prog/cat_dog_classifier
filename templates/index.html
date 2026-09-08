@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cat vs Dog AI Classifier</title>
+    <meta name="description" content="AI-powered cat vs dog image classifier using deep learning.">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="page-glow glow-one"></div>
+    <div class="page-glow glow-two"></div>
+
+    <header class="navbar">
+        <a class="brand" href="/">
+            <span class="brand-mark">AI</span>
+            <span>Vision<span class="brand-dot">.</span>Lab</span>
+        </a>
+
+        <nav>
+            <a href="#classifier">Classifier</a>
+            <a href="#technology">Technology</a>
+        </nav>
+
+        <div class="nav-pill">
+            <span class="status-dot"></span>
+            Model Online
+        </div>
+    </header>
+
+    <main>
+        <section class="hero">
+            <div class="hero-copy">
+                <div class="eyebrow">
+                    <span class="eyebrow-dot"></span>
+                    DEEP LEARNING • COMPUTER VISION
+                </div>
+
+                <h1>
+                    Cat or Dog?
+                    <span>Let AI Decide.</span>
+                </h1>
+
+                <p class="hero-text">
+                    Upload an image and let our convolutional neural network
+                    identify whether it contains a cat or a dog.
+                </p>
+
+                <div class="hero-stats">
+                    <div>
+                        <strong>128×128</strong>
+                        <span>Input Resolution</span>
+                    </div>
+                    <div>
+                        <strong>CNN</strong>
+                        <span>Model Architecture</span>
+                    </div>
+                    <div>
+                        <strong>2-Class</strong>
+                        <span>Classification</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="hero-visual">
+                <div class="orb orb-a"></div>
+                <div class="orb orb-b"></div>
+
+                <div class="visual-card">
+                    <div class="visual-top">
+                        <span class="mini-dot"></span>
+                        <span>AI VISION ENGINE</span>
+                        <span class="live-label">LIVE</span>
+                    </div>
+
+                    <div class="visual-face">
+                        <div class="scan-line"></div>
+                        <div class="scan-corner c1"></div>
+                        <div class="scan-corner c2"></div>
+                        <div class="scan-corner c3"></div>
+                        <div class="scan-corner c4"></div>
+                        <div class="pet-icon">🐾</div>
+                    </div>
+
+                    <div class="visual-result">
+                        <div>
+                            <small>MODEL STATUS</small>
+                            <strong>Ready to Analyze</strong>
+                        </div>
+                        <span class="ready-badge">READY</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="classifier" class="classifier-section">
+            <div class="section-heading">
+                <div>
+                    <span class="section-kicker">IMAGE CLASSIFICATION</span>
+                    <h2>Analyze your image</h2>
+                    <p>Drop an image below or browse your device to start.</p>
+                </div>
+
+                <div class="secure-note">
+                    <span>✓</span> JPG, PNG, WEBP • Max 10 MB
+                </div>
+            </div>
+
+            <div class="classifier-grid">
+
+                <div class="upload-panel">
+
+                    <div id="dropZone" class="drop-zone">
+
+                        <input 
+                            id="fileInput" 
+                            type="file" 
+                            accept="image/png,image/jpeg,image/webp" 
+                            hidden
+                        >
+
+                        <div class="upload-icon">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 16V4m0 0L7 9m5-5 5 5M5 14v4a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4"/>
+                            </svg>
+                        </div>
+
+                        <h3>Upload an image</h3>
+
+                        <p>
+                            Drag & drop your cat or dog photo here
+                        </p>
+
+                        <button 
+                            id="browseBtn" 
+                            class="primary-btn" 
+                            type="button"
+                        >
+                            Choose Image
+                        </button>
+
+                        <span class="or-text">
+                            or drop it anywhere in this box
+                        </span>
+
+                    </div>
+
+                    <div id="previewArea" class="preview-area hidden">
+
+                        <div class="preview-image-wrap">
+
+                            <img 
+                                id="previewImage" 
+                                alt="Selected image preview"
+                            >
+
+                            <button 
+                                id="removeBtn" 
+                                class="remove-btn" 
+                                type="button" 
+                                aria-label="Remove image"
+                            >
+                                ×
+                            </button>
+
+                        </div>
+
+                        <div class="file-meta">
+
+                            <div>
+                                <strong id="fileName">
+                                    image.jpg
+                                </strong>
+
+                                <span id="fileSize">
+                                    0 KB
+                                </span>
+                            </div>
+
+                            <button 
+                                id="analyzeBtn" 
+                                class="primary-btn analyze-btn" 
+                                type="button"
+                            >
+                                Analyze Image <span>→</span>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                    <div id="loadingState" class="loading-state hidden">
+
+                        <div class="loader-ring"></div>
+
+                        <div>
+                            <strong>Analyzing image...</strong>
+                            <span>Running the CNN model</span>
+                        </div>
+
+                    </div>
+
+                    <div id="errorBox" class="error-box hidden"></div>
+
+                </div>
+
+
+                <!-- RESULT PANEL -->
+
+                <aside class="result-panel">
+
+                    <div class="result-header">
+
+                        <span>AI PREDICTION</span>
+
+                        <span class="result-status">
+                            ● ONLINE
+                        </span>
+
+                    </div>
+
+
+                    <div id="emptyResult" class="empty-result">
+
+                        <div class="empty-icon">
+                            ✦
+                        </div>
+
+                        <h3>
+                            Your result will appear here
+                        </h3>
+
+                        <p>
+                            Upload an image and click 
+                            <strong>Analyze Image</strong>.
+                        </p>
+
+                    </div>
+
+
+                    <div id="resultContent" class="result-content hidden">
+
+                        <div 
+                            class="prediction-icon" 
+                            id="predictionIcon"
+                        >
+                            🐶
+                        </div>
+
+                        <span class="prediction-label">
+                            PREDICTED CLASS
+                        </span>
+
+                        <h3 id="predictionText">
+                            Dog
+                        </h3>
+
+                    </div>
+
+                </aside>
+
+            </div>
+
+        </section>
+
+
+        <!-- TECHNOLOGY SECTION -->
+
+        <section id="technology" class="tech-section">
+
+            <div class="section-heading centered">
+
+                <span class="section-kicker">
+                    TECHNOLOGY
+                </span>
+
+                <h2>
+                    Built for image intelligence
+                </h2>
+
+            </div>
+
+
+            <div class="tech-grid">
+
+                <div class="tech-card">
+
+                    <span class="tech-symbol">
+                        TF
+                    </span>
+
+                    <div>
+                        <strong>
+                            TensorFlow / Keras
+                        </strong>
+
+                        <p>
+                            Deep learning inference
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="tech-card">
+
+                    <span class="tech-symbol">
+                        CV
+                    </span>
+
+                    <div>
+                        <strong>
+                            Computer Vision
+                        </strong>
+
+                        <p>
+                            Image preprocessing
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="tech-card">
+
+                    <span class="tech-symbol">
+                        CNN
+                    </span>
+
+                    <div>
+                        <strong>
+                            Convolutional Neural Network
+                        </strong>
+
+                        <p>
+                            Feature extraction & classification
+                        </p>
+                    </div>
+
+                </div>
+
+
+                <div class="tech-card">
+
+                    <span class="tech-symbol">
+                        API
+                    </span>
+
+                    <div>
+                        <strong>
+                            Flask
+                        </strong>
+
+                        <p>
+                            Lightweight prediction API
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <footer>
+
+        <div class="brand">
+
+            <span class="brand-mark">
+                AI
+            </span>
+
+            <span>
+                Vision<span class="brand-dot">.</span>Lab
+            </span>
+
+        </div>
+
+        <p>
+            Cat vs Dog Classifier • Deep Learning Project
+        </p>
+
+    </footer>
+
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+</html>
